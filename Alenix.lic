@@ -41,8 +41,26 @@ require "Olib"
     end
   end
 
-
-
+  module State
+    def stand()
+      unless standing?
+        Stance.defensive
+        Char.stand
+      end
+    end  
+	
+	def defend()
+      Stance.defensive if Targets.empty? or checkhealth < 80
+    end
+  
+     if Opts.search or Opts.loot
+      def search()
+        return unless Creatures.dead.size > 0 and not State.poaching?
+        Script.run("loot")
+      end
+    end
+  end	
+	
   module Timing
     def self.spam()
       return sleep(0.1) if Spell[1035].active? or Spell[506].active?
@@ -73,14 +91,17 @@ require "Olib"
   end
 
 
-  module Ambushing
+  module Combat
 	PRIORITY = %i[head neck back]
-
+	PRIORITY_2 =%i[left_eye right_eye]
     def self.ambush(creature, priority = nil)
-      unless Char.hidden?
-	    Char.hide
-      else
-       Stance.offensive
+	
+      return Char.stand unless Char.standing?
+	  
+	  return Char.hide() unless Char.standing?
+	  
+	  return Char.hide() unless Char.hidden?
+		Stance.offensive
         result = dothistimeout("punch ##{creature.id}", 1, Outcomes)
 
       return bash(creature) if result =~ /You cannot aim/
@@ -96,9 +117,19 @@ require "Olib"
       dothistimeout("cheapshot kneebash ##{creature.id}", 1, Outcomes) if checkstamina >= 15
       Timing.spam()
     end
-  end
+	
+	def self.thrown(creature, priority || PRIORITY = [])
+		if creature.flying?
+			fput("target ##{creature.id}")
+			Stance.offensive
+			multifput("rub my bandolier", "hurl ##{creature.id}")
+			unless creature.dead?
+				Char.aim creature.kill_shot(priority_2 || PRIORITY_2)
+		end
+		Timing.spam()
+	end
 
-
+ 
 
 	
 
