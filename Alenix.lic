@@ -1,0 +1,105 @@
+require "Olib"
+
+
+
+  module Targets
+    BLACKLIST = %w{skayl nest}
+
+    def self.within_range(creature)
+      return true if Opts.underhunt or checkbounty.include?("escort")
+      creature_level = creature.level || Char.level
+      return (Char.level - creature_level).abs < 25
+    end
+
+
+    def self.should_ignore?(creature)
+      creature.dead? or 
+      creature.gone? or
+      BLACKLIST.include?(creature) or
+      not Targets.within_range(creature)
+    end
+  
+    def self.fetch
+      Creatures
+        .reject do |creature| should_ignore?(creature) end
+        .sort   do |a,b| a.status.size - b.status.size end
+    end
+
+    def self.dangerous
+      fetch.select do |creature|
+        creature.status.empty?
+      end
+    end
+
+    def self.guard(creature, *others)
+      return false if creature.dead? || creature.gone? || creature.nil? || (creature.status & others).size > 0
+      yield(creature) if block_given?
+    end
+
+    def self.method_missing(method, *args, &block)
+      fetch.send(method, *args, &block)
+    end
+  end
+
+
+
+  module Timing
+    def self.spam()
+      return sleep(0.1) if Spell[1035].active? or Spell[506].active?
+      ttl = (checkrt - 0.5)
+      slept = sleep(ttl) if ttl > 0
+    end
+  end
+
+
+  module Hiding
+	Outcomes = Regexp.union(
+     /You attempt to blend/, 
+	 /You fail to find a place/, 
+	 /notices your attempt/
+    )
+	
+	
+	def self.hide
+		fput("hide")
+		waitrt?
+		
+	return if result =~/You fail to find a place/ or /notices your attempt/
+		
+	unless creature.dead?
+		creature.ambush
+	end
+		Timing.spam()
+  end
+
+
+  module Ambushing
+	PRIORITY = %i[head neck back]
+
+    def self.ambush(creature, priority = nil)
+      unless Char.hidden?
+	    Char.hide
+      else
+       Stance.offensive
+        result = dothistimeout("punch ##{creature.id}", 1, Outcomes)
+
+      return bash(creature) if result =~ /You cannot aim/
+    
+      unless creature.dead? or Skills.ambush == 0
+        Char.aim(
+          creature.kill_shot(priority || PRIORITY))
+      end
+      Timing.spam()
+    end
+
+    def self.bash(creature)
+      dothistimeout("cheapshot kneebash ##{creature.id}", 1, Outcomes) if checkstamina >= 15
+      Timing.spam()
+    end
+  end
+
+
+
+	
+
+	
