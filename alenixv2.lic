@@ -1,0 +1,75 @@
+require "Olib"
+load "./scripts/hunting.rb"
+
+
+module Hunting
+	module Alenix
+		module Attack
+			Outcomes = Regexp.union(
+				 /You cannot aim/,
+				 /You make a precise/
+				%r[is already dead],
+				%r[What were you referring to]
+				)
+
+			def self.thrown(creature, priority = %i[right_eye left_eye])
+				if creature.flying? && !creature.undead?
+					mulitfput("target ##{creature.id}", "rub my bandolier")
+					Hunting::Hurling.try(creature, priority)
+				end
+					Timing.spam()
+			end
+			
+			def self.uac(creature)
+				Char.hide unless Char.hidden?
+				Stance.offensive
+				result = dothistimeout "punch ##{creature.id} head", 1, Outcome::result
+				
+				return bash(creature) if result =~ /You cannot aim/
+				end
+					Timing.spam()
+			end
+			
+					
+			def self.bash(creature)
+				unless creature.stunned? || creature.prone? || creature.tags.include?(:insect) || creature.flying? || (creature.level - Char.level) > 6
+					Stance.offensive
+					fput "cheapshot kneebash ##{creature.id}" if checkstamina >= 15
+				end
+			end
+		end
+	end
+end
+
+module Hunting
+  module Alenix
+    module Tactics
+      def quickening()
+        Quickening.counter()
+      end
+
+      def attack()
+        return unless Group.nonmembers.empty?
+        return if Targets.empty? or Script.running?("go2")
+        Attack.bash()
+        Attack.uac Targets.first
+      end
+      
+      def defend()
+        Stance.defensive() if Targets.empty?
+      end
+
+			def loot()
+				return unless (Group.nonmembers.empty? and (Opts.loot or Group.members.empty?))
+				Loot.main() unless (Loot.valid_items.empty? and Creatures.dead.empty?)
+			end
+			
+      def wander()
+				return unless Opts.wander
+        sleep(1) if Targets.empty?
+				return if not Targets.empty? or not Creatures.dead.empty? or not Loot.valid_items.empty?
+				Script.run("wander")  
+			end
+    end
+  end
+end
